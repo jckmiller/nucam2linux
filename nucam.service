@@ -1,0 +1,16 @@
+[Unit]
+Description=nucam2linux – Android USB Webcam Bridge
+After=graphical-session.target
+
+[Service]
+Type=simple
+# Adjust the path below if you install nucam.py somewhere other than ~/nucam2linux
+ExecStart=/usr/bin/python3 %h/nucam2linux/nucam.py --no-ui
+Restart=on-failure
+RestartSec=5
+
+# Allow the service to find v4l2 devices
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=default.target
