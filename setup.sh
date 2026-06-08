@@ -117,7 +117,14 @@ fi
 # 8. Install Python dependencies
 # ---------------------------------------------------------------------------
 info "Installing Python dependencies (rich)…"
-pip3 install --quiet --upgrade rich
+# Ubuntu 23.04+ enforces PEP 668 (externally-managed-environment).
+# Prefer the system apt package; fall back to pip with --break-system-packages.
+if apt-cache show python3-rich &>/dev/null 2>&1; then
+    sudo apt-get install -y python3-rich
+else
+    pip3 install --quiet --upgrade --break-system-packages rich \
+        || pip3 install --quiet --upgrade rich
+fi
 
 # ---------------------------------------------------------------------------
 # 9. Copy project files to ~/nucam2linux
