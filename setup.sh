@@ -45,18 +45,21 @@ sudo apt-get install -y \
     wget
 
 # ---------------------------------------------------------------------------
-# 4. Install scrcpy (prefer latest via snap; fall back to apt)
+# 4. Install scrcpy via apt (snap version causes GPU interface errors)
 # ---------------------------------------------------------------------------
+# Remove the snap version if it exists — it shadows the apt binary and triggers
+# "gpu-2404-provider-wrapper not found: ensure slot is connected" errors.
+if snap list scrcpy &>/dev/null 2>&1; then
+    info "Removing snap version of scrcpy (replacing with apt)…"
+    sudo snap remove scrcpy
+fi
+
 if command -v scrcpy &>/dev/null; then
     SCRCPY_VER=$(scrcpy --version 2>&1 | head -1)
-    info "scrcpy already installed: $SCRCPY_VER"
+    info "scrcpy already installed via apt: $SCRCPY_VER"
 else
-    info "Installing scrcpy…"
-    if command -v snap &>/dev/null; then
-        sudo snap install scrcpy
-    else
-        sudo apt-get install -y scrcpy
-    fi
+    info "Installing scrcpy via apt…"
+    sudo apt-get install -y scrcpy
 fi
 
 # Verify scrcpy supports --video-source=camera (requires v2.0+)

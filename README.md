@@ -195,7 +195,7 @@ webbrowser.open('file://'+f.name)
 | Problem | Fix |
 |---|---|
 | `adb devices` shows `unauthorized` | Unlock phone and tap **Allow** on the USB debugging dialog |
-| `scrcpy: --video-source not found` | Upgrade scrcpy to v2.0+: `sudo snap install scrcpy` |
+| `scrcpy: --video-source not found` | Upgrade scrcpy to v2.0+: `sudo apt-get install scrcpy` (avoid snap — it causes GPU interface errors) |
 | `/dev/video10` doesn't exist | Run `sudo modprobe v4l2loopback devices=1 video_nr=10 card_label="nucam2linux" exclusive_caps=1` |
 | Browser doesn't see the camera | Ensure your user is in the `video` group: `groups $USER` |
 | Black screen in browser | Try switching `camera_facing` in `nucam.conf` |
