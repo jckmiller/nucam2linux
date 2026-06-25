@@ -1,0 +1,9 @@
+# nucam2linux Python dependencies
+#
+# Install with:
+#   pip3 install -r requirements.txt
+#
+# Note: setup.sh installs 'rich' via apt (python3-rich) on Ubuntu 22.04+,
+# which is preferred over pip to avoid PEP 668 conflicts.
+
+rich>=12.0.0

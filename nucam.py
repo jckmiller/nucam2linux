@@ -7,12 +7,13 @@ Usage:
     python3 nucam.py            # interactive terminal UI
     python3 nucam.py --no-ui    # headless/daemon mode (systemd)
 """
+from __future__ import annotations
 
 import argparse
 import configparser
 import glob
 import os
-import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -65,6 +66,52 @@ def load_config() -> configparser.ConfigParser:
             cfg.read(path)
             break
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Config validation
+# ---------------------------------------------------------------------------
+
+def validate_config(cfg: configparser.ConfigParser) -> list[str]:
+    """Validate config values and reset any invalid ones to safe defaults.
+
+    Returns a list of human-readable warning strings for each corrected value
+    so they can be logged at startup.
+    """
+    warnings: list[str] = []
+
+    # fps: must be a positive integer
+    fps_raw = cfg.get("camera", "fps", fallback="30")
+    try:
+        if int(fps_raw) <= 0:
+            raise ValueError
+    except ValueError:
+        warnings.append(f"Invalid fps '{fps_raw}' in config — using default 30.")
+        cfg.set("camera", "fps", "30")
+
+    # reconnect_delay: must be a positive integer
+    delay_raw = cfg.get("scrcpy", "reconnect_delay", fallback="3")
+    try:
+        if int(delay_raw) <= 0:
+            raise ValueError
+    except ValueError:
+        warnings.append(f"Invalid reconnect_delay '{delay_raw}' in config — using default 3.")
+        cfg.set("scrcpy", "reconnect_delay", "3")
+
+    # resolution: must be exactly two positive integers separated by 'x'
+    res_raw = cfg.get("camera", "resolution", fallback="1280x720")
+    parts = res_raw.lower().split("x")
+    if len(parts) != 2 or not all(p.strip().isdigit() and int(p.strip()) > 0 for p in parts):
+        warnings.append(f"Invalid resolution '{res_raw}' in config — using default 1280x720.")
+        cfg.set("camera", "resolution", "1280x720")
+
+    # camera_facing: must be "front" or "back"
+    facing = cfg.get("camera", "camera_facing", fallback="back").strip().lower()
+    if facing not in ("front", "back"):
+        warnings.append(f"Invalid camera_facing '{facing}' in config — using default 'back'.")
+        cfg.set("camera", "camera_facing", "back")
+
+    return warnings
 
 
 # ---------------------------------------------------------------------------
@@ -138,8 +185,12 @@ def find_loopback_devices() -> list[str]:
             )
             if "v4l2 loopback" in out.lower() or "nucam2linux" in out.lower():
                 devices.append(dev)
-        except Exception:
+        except subprocess.CalledProcessError:
+            # Non-zero exit is expected for regular (non-loopback) camera devices.
             pass
+        except OSError as exc:
+            # Unexpected — e.g. permission denied on the device node.
+            print(f"[WARN] Could not probe {dev}: {exc}", file=sys.stderr)
     return devices
 
 
@@ -236,14 +287,14 @@ class StreamWorker(threading.Thread):
         fps = cfg.get("camera", "fps", fallback="30")
         extra = cfg.get("scrcpy", "extra_flags", fallback="").strip()
 
-        # Parse WxH
-        w, h = res.lower().split("x") if "x" in res.lower() else ("1280", "720")
+        # Parse WxH — guaranteed to be valid at this point by validate_config()
+        w, h = res.lower().split("x")
         self.state.resolution = f"{w}x{h}"
         self.state.fps = fps
 
         cmd = [
             "scrcpy",
-            f"-s", serial,
+            "-s", serial,
             "--video-source=camera",
             f"--camera-facing={facing}",
             f"--camera-size={w}x{h}",
@@ -253,7 +304,7 @@ class StreamWorker(threading.Thread):
             "--no-window",
         ]
         if extra:
-            cmd += extra.split()
+            cmd += shlex.split(extra)
         return cmd
 
     def run(self):
@@ -497,6 +548,9 @@ def preflight(no_ui: bool) -> bool:
     if not shutil.which("scrcpy"):
         issues.append("scrcpy not found in PATH. Run setup.sh.")
         ok = False
+    if not shutil.which("v4l2-ctl"):
+        issues.append("v4l2-ctl not found in PATH. Install v4l-utils: sudo apt-get install v4l-utils")
+        ok = False
     if not RICH_AVAILABLE and not no_ui:
         issues.append("Python 'rich' library not installed. Run: pip3 install rich")
         # non-fatal — will fall back to headless
@@ -527,6 +581,10 @@ def main():
     cfg   = load_config()
     state = AppState()
     state.log(f"nucam2linux {VERSION} starting…")
+
+    # Validate config values; log any fields that were corrected
+    for warning in validate_config(cfg):
+        state.log(f"WARN: {warning}")
 
     # Pre-populate config values in state for display before first connection
     state.resolution = cfg.get("camera", "resolution", fallback="1280x720")
