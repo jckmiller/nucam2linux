@@ -14,11 +14,12 @@ Android Camera
   ADB (USB Debugging)
       │
   scrcpy --video-source=camera
-      │       ↘
-  ffmpeg pipe  └──► /dev/video10  (v4l2loopback)
-                           │
-                      Browser sees it as
-                      a standard webcam ✅
+      │         --v4l2-sink=/dev/video10
+      │
+  /dev/video10  (v4l2loopback kernel module)
+      │
+  Browser / video app sees it as
+  a standard webcam ✅
 ```
 
 ---
@@ -39,7 +40,7 @@ Android Camera
 ### 1. Clone or download this repo
 
 ```bash
-git clone https://github.com/yourname/nucam2linux.git ~/nucam2linux
+git clone https://github.com/jckmiller/nucam2linux.git ~/nucam2linux
 cd ~/nucam2linux
 ```
 
@@ -173,18 +174,17 @@ Or open this one-liner test page:
 
 ```bash
 python3 -c "
-import http.server, webbrowser, threading, time
-html = open('/dev/stdin').read() if False else '''<!DOCTYPE html>
+import tempfile, os, webbrowser
+html = '''<!DOCTYPE html>
 <html><body>
 <video id=v autoplay playsinline style=\"width:100%\"></video>
 <script>
 navigator.mediaDevices.getUserMedia({video:true})
   .then(s=>document.getElementById(\"v\").srcObject=s);
 </script></body></html>'''
-import tempfile, os
 f = tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w')
 f.write(html); f.close()
-webbrowser.open('file://'+f.name)
+webbrowser.open('file://' + f.name)
 "
 ```
 

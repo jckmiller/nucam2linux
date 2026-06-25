@@ -32,7 +32,7 @@ sudo apt-get update -qq
 # ---------------------------------------------------------------------------
 # 3. Install runtime dependencies
 # ---------------------------------------------------------------------------
-info "Installing dependencies: adb, ffmpeg, v4l2loopback-dkms, v4l-utils, python3-pip…"
+info "Installing dependencies: adb, ffmpeg, scrcpy, v4l2loopback-dkms, v4l2loopback-utils, v4l-utils, python3-pip, python3-venv, curl, wget…"
 sudo apt-get install -y \
     adb \
     ffmpeg \
